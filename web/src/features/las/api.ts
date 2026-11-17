@@ -38,9 +38,10 @@ export async function submitLAS(
     body: JSON.stringify(payload),
   })
   const result = await response.json()
-  if (!response.ok || result.error)
+  if (!response.ok || result.error) {
     throw new Error(
       result.error?.message || result.message || 'LAS request failed'
     )
+  }
   return result
 }

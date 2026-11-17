@@ -72,12 +72,13 @@ export function LASWorkspace() {
     const content: Array<Record<string, unknown>> = [
       { type: 'text', text: prompt },
     ]
-    if (reference)
+    if (reference) {
       content.push({
         type: 'image_url',
         image_url: { url: reference },
         role: 'reference_image',
       })
+    }
     submit.mutate({
       path: '/las/video/tasks',
       payload: {
