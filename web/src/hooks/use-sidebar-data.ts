@@ -84,6 +84,7 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             url: '/dashboard/models',
             icon: LayoutDashboard,
           },
+          {title: t('LAS Workspace'), url: '/las', icon: Workflow},
           {
             title: t('API Keys'),
             url: '/keys',
