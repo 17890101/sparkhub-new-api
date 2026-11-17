@@ -10,7 +10,13 @@ import { ErrorState } from '@/components/error-state'
 import { LoadingState } from '@/components/loading-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -43,7 +49,7 @@ export function LASWorkspace() {
     mutationFn: (request: { path: string; payload: unknown }) =>
       submitLAS(request.path, request.payload, key),
     onSuccess: (result) => {
-      toast.success(t('Task submitted'))
+      toast.success(t('Submitted. Follow progress in the results below.'))
       void client.invalidateQueries({ queryKey: ['las-tasks'] })
       if (deleting) setDeleting('')
       return result
@@ -107,18 +113,40 @@ export function LASWorkspace() {
       },
     })
   }
+  const actionLabels: Record<string, string> = {
+    asset_group: 'Material group',
+    asset: 'Reference material',
+    video: 'Video generation',
+    edit: 'Video editing',
+    asset_delete: 'Material deletion',
+  }
+  const statusLabels: Record<string, string> = {
+    NOT_START: 'Waiting',
+    SUBMITTED: 'Waiting',
+    QUEUED: 'Queued',
+    IN_PROGRESS: 'Processing',
+    SUCCESS: 'Completed',
+    FAILURE: 'Failed',
+  }
   const busy = submit.isPending
   return (
     <div className='space-y-6'>
       <div>
-        <h1 className='text-2xl font-semibold'>{t('LAS Workspace')}</h1>
+        <h1 className='text-2xl font-semibold'>{t('LAS Connection Lab')}</h1>
         <p className='text-muted-foreground'>
-          {t('Private assets, video generation and editing')}
+          {t(
+            'Start with a text prompt, or add a reference image before generating a video.'
+          )}
+        </p>
+        <p className='text-muted-foreground text-sm'>
+          {t(
+            'For a first test: paste a platform token, enter a description, then click Generate a new video. Reference materials are optional.'
+          )}
         </p>
       </div>
       <Card>
         <CardContent className='space-y-2 pt-6'>
-          <Label htmlFor='las-key'>{t('SparkHub API key')}</Label>
+          <Label htmlFor='las-key'>{t('1. Platform API token')}</Label>
           <Input
             id='las-key'
             type='password'
@@ -128,7 +156,7 @@ export function LASWorkspace() {
           />
           <p className='text-muted-foreground text-sm'>
             {t(
-              'Use your platform key, not the upstream LAS key. This page keeps it in memory only.'
+              'Copy a token from API Keys and paste it here. Keep your upstream LAS key in the channel settings.'
             )}
           </p>
         </CardContent>
@@ -136,10 +164,17 @@ export function LASWorkspace() {
       <div className='grid gap-6 lg:grid-cols-2'>
         <Card>
           <CardHeader>
-            <CardTitle>{t('Reference assets')}</CardTitle>
+            <CardTitle>{t('2. Add reference material (optional)')}</CardTitle>
+            <CardDescription>
+              {t(
+                'Skip this section for text-only generation. To use your own image, first create a group, select it in the results below, then add the image link.'
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent className='space-y-4'>
-            <Label htmlFor='las-name'>{t('Name')}</Label>
+            <Label htmlFor='las-name'>
+              {t('Name for a new group or material')}
+            </Label>
             <Input
               id='las-name'
               value={name}
@@ -147,21 +182,34 @@ export function LASWorkspace() {
               onChange={(e) => setName(e.target.value)}
             />
             <Button disabled={busy || !name} onClick={createGroup}>
-              {t('Create asset group')}
+              {t('Create a material group')}
             </Button>
-            <Label htmlFor='las-group'>{t('Group handle')}</Label>
+            <Label htmlFor='las-group'>{t('Selected material group')}</Label>
             <Input
               id='las-group'
-              placeholder='task_…'
+              placeholder={t('Choose Select this group in the results below')}
               value={group}
               onChange={(e) => setGroup(e.target.value)}
+              aria-describedby='las-group-help'
             />
-            <Label htmlFor='las-url'>{t('Public HTTPS asset URL')}</Label>
+            <p id='las-group-help' className='text-muted-foreground text-sm'>
+              {t(
+                'This field fills automatically when you select a group below. You do not need to type an ID.'
+              )}
+            </p>
+            <Label htmlFor='las-url'>{t('Material download link')}</Label>
             <Input
               id='las-url'
               value={url}
               onChange={(e) => setURL(e.target.value)}
+              placeholder='https://example.com/reference.jpg'
+              aria-describedby='las-url-help'
             />
+            <p id='las-url-help' className='text-muted-foreground text-sm'>
+              {t(
+                'Paste a public HTTPS image, video or audio link. Local file paths and links requiring login cannot be imported.'
+              )}
+            </p>
             <div className='flex gap-2'>
               {['Image', 'Video', 'Audio'].map((value) => (
                 <Button
@@ -177,38 +225,62 @@ export function LASWorkspace() {
               disabled={busy || !url || !group || !name}
               onClick={createAsset}
             >
-              {t('Import asset')}
+              {t('Add material to selected group')}
             </Button>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>{t('Video generation and editing')}</CardTitle>
+            <CardTitle>{t('3. Generate or edit a video')}</CardTitle>
           </CardHeader>
           <CardContent className='space-y-4'>
-            <Label htmlFor='las-model'>{t('Model')}</Label>
+            <Label htmlFor='las-model'>
+              {t('Video model (default selected)')}
+            </Label>
             <Input
               id='las-model'
               value={model}
               onChange={(e) => setModel(e.target.value)}
+              aria-describedby='las-model-help'
             />
-            <Label htmlFor='las-prompt'>{t('Prompt')}</Label>
+            <p id='las-model-help' className='text-muted-foreground text-sm'>
+              {t(
+                'Seedance Fast is selected for a first test. The model ID usually does not need changing.'
+              )}
+            </p>
+            <Label htmlFor='las-prompt'>
+              {t('Describe the video you want')}
+            </Label>
             <Textarea
               id='las-prompt'
               value={prompt}
               maxLength={10000}
+              placeholder={t(
+                'Example: a slow camera move across a quiet landscape in warm morning light'
+              )}
               onChange={(e) => setPrompt(e.target.value)}
             />
             <Label htmlFor='las-reference'>
-              {t('Reference image URL or asset handle')}
+              {t('Reference image (optional)')}
             </Label>
             <Input
               id='las-reference'
-              placeholder='asset://task_…'
+              placeholder={t(
+                'Select a ready image below, or paste a public image link'
+              )}
               value={reference}
               onChange={(e) => setReference(e.target.value)}
+              aria-describedby='las-reference-help'
             />
-            <Label htmlFor='las-seconds'>{t('Duration')}</Label>
+            <p
+              id='las-reference-help'
+              className='text-muted-foreground text-sm'
+            >
+              {t(
+                'Use as reference image fills this field automatically. Leave it empty for text-only generation.'
+              )}
+            </p>
+            <Label htmlFor='las-seconds'>{t('Video length in seconds')}</Label>
             <Input
               id='las-seconds'
               type='number'
@@ -216,29 +288,49 @@ export function LASWorkspace() {
               max={15}
               value={seconds}
               onChange={(e) => setSeconds(Number(e.target.value))}
+              aria-describedby='las-duration-help'
             />
+            <p id='las-duration-help' className='text-muted-foreground text-sm'>
+              {t(
+                'This test form uses 4 to 15 seconds and 480p output. New videos are generated without audio.'
+              )}
+            </p>
             <Button disabled={busy || !prompt} onClick={generate}>
-              {t('Generate video')}
+              {t('Generate a new video')}
             </Button>
-            <Label htmlFor='las-source'>{t('Source video HTTPS URL')}</Label>
+            <Label htmlFor='las-source'>
+              {t('Original video link (editing only)')}
+            </Label>
             <Input
               id='las-source'
               value={sourceVideo}
               onChange={(e) => setSourceVideo(e.target.value)}
+              placeholder='https://example.com/original.mp4'
+              aria-describedby='las-edit-help'
             />
+            <p id='las-edit-help' className='text-muted-foreground text-sm'>
+              {t(
+                'Only fill this when editing an existing video. Use a public HTTPS video link and describe the changes above; generating a new video does not need this field.'
+              )}
+            </p>
             <Button
               variant='outline'
               disabled={busy || !prompt || !sourceVideo}
               onClick={edit}
             >
-              {t('Edit video')}
+              {t('Edit the original video')}
             </Button>
           </CardContent>
         </Card>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>{t('My LAS assets and tasks')}</CardTitle>
+          <CardTitle>{t('4. Results and reference materials')}</CardTitle>
+          <CardDescription>
+            {t(
+              'This list refreshes automatically. Select a ready group or image for the form above; open completed video results to preview or download.'
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
           {tasks.isLoading && <LoadingState />}
@@ -255,11 +347,16 @@ export function LASWorkspace() {
           {tasks.data?.items.map((task) => (
             <div key={task.task_id} className='space-y-2 rounded-lg border p-4'>
               <div className='flex flex-wrap items-center gap-2'>
-                <Badge variant='outline'>{task.action}</Badge>
-                <Badge>{task.status}</Badge>
+                <Badge variant='outline'>
+                  {t(actionLabels[task.action] || task.action)}
+                </Badge>
+                <Badge>{t(statusLabels[task.status] || task.status)}</Badge>
                 <span>{task.data?.Name}</span>
               </div>
               <div className='flex items-center gap-2'>
+                <span className='text-muted-foreground text-xs'>
+                  {t('Record ID')}
+                </span>
                 <code className='text-xs break-all'>{task.task_id}</code>
                 <CopyButton
                   value={
@@ -280,7 +377,7 @@ export function LASWorkspace() {
                   size='sm'
                   onClick={() => setGroup(task.task_id)}
                 >
-                  {t('Use this group')}
+                  {t('Select this group')}
                 </Button>
               )}
               {task.action === 'asset' && task.status === 'SUCCESS' && (
@@ -290,7 +387,7 @@ export function LASWorkspace() {
                     size='sm'
                     onClick={() => setReference(`asset://${task.task_id}`)}
                   >
-                    {t('Use as reference')}
+                    {t('Use as reference image')}
                   </Button>
                   <Button
                     variant='destructive'
